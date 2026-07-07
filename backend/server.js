@@ -10,8 +10,13 @@ import postRoutes from "./routes/postRoutes.js";
 import socialRoutes from "./routes/socialRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 
-dotenv.config();
-connectDB();
+dotenv.config({ path: new URL(".env", import.meta.url) });
+
+if (!process.env.MONGO_URI) {
+  throw new Error("MONGO_URI is missing. Create backend/.env and set MONGO_URI.");
+}
+
+await connectDB();
 
 const app = express();
 
