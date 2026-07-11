@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar.jsx";
 import api from "../api/axios.js";
+import { apiUrl } from "../api/config.js";
 
 const ALL_PLATFORMS = [
   { id: "instagram", label: "Instagram", color: "#E1306C" },
@@ -28,20 +29,24 @@ const ConnectedAccounts = () => {
     }
   }, []);
 
-  const isConnected = (platform) => accounts.some((a) => a.platform === platform);
-
   const handleDisconnect = async (id) => {
     await api.delete(`/social/${id}`);
     load();
   };
 
-  // Full page redirect into the OAuth flow — the user's JWT rides along as a
+  // Full page redirect into the OAuth flow - the user's JWT rides along as a
   // query param since a browser navigation can't carry an Authorization header.
   // From here the user is sent straight to the platform's own login/consent
   // screen; no coding or manual token entry on their part.
   const handleConnect = (platform) => {
     const token = localStorage.getItem("dispatch_token");
-    window.location.href = `/api/social/connect/${platform}?token=${token}`;
+    if (!token) {
+      setSearchParams({ error: "Please log in again before connecting an account." });
+      return;
+    }
+
+    const oauthPlatform = platform === "instagram" ? "facebook" : platform;
+    window.location.href = apiUrl(`/api/social/connect/${oauthPlatform}?token=${encodeURIComponent(token)}`);
   };
 
   return (
@@ -106,3 +111,6 @@ const ConnectedAccounts = () => {
 };
 
 export default ConnectedAccounts;
+
+
+
