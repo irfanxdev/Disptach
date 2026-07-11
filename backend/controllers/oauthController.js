@@ -19,17 +19,17 @@ export const startOAuth = (req, res) => {
   const provider = providers[platform];
 
   if (!provider) return res.status(400).send("Unsupported platform");
-  if (!provider.clientId) {
+  if (!provider.clientId || !provider.clientSecret || !provider.redirectUri) {
     return res
       .status(500)
-      .send(`${platform} isn't configured yet — add its client id/secret to the backend .env file.`);
+      .send(`${platform} isn't configured yet - add its client id, secret, and redirect URI to the backend .env file.`);
   }
 
   let userId;
   try {
     userId = jwt.verify(token, process.env.JWT_SECRET).id;
   } catch {
-    return res.status(401).send("Your session expired — please log in again and retry.");
+    return res.status(401).send("Your session expired - please log in again and retry.");
   }
 
   const statePayload = { userId, platform };
@@ -98,19 +98,34 @@ const saveAccount = async ({ userId, platform, accountId, accountName, accessTok
 export const oauthCallback = async (req, res) => {
   const { platform } = req.params;
   const { code, state, error, error_description } = req.query;
-  const frontend = process.env.CLIENT_URL;
+  const frontend = process.env.CLIENT_URL || "http://localhost:5173";
+  const redirectError = (message) =>
+    res.redirect(`${frontend}/accounts?error=${encodeURIComponent(message)}`);
 
   if (error) {
-    return res.redirect(`${frontend}/accounts?error=${encodeURIComponent(error_description || error)}`);
+    return redirectError(error_description || error);
+  }
+
+  if (!code || !state) {
+    return redirectError("Missing authorization details from the platform. Please try connecting again.");
+  }
+
+  if (!providers[platform]) {
+    return redirectError("Unsupported platform");
   }
 
   let decoded;
   try {
     decoded = verifyState(state);
   } catch {
-    return res.redirect(`${frontend}/accounts?error=Invalid or expired connection attempt`);
+    return redirectError("Invalid or expired connection attempt");
   }
-  const { userId, codeVerifier } = decoded;
+
+  const { userId, codeVerifier, platform: statePlatform } = decoded;
+
+  if (statePlatform !== platform) {
+    return redirectError("Connection attempt did not match the selected platform. Please try again.");
+  }
 
   try {
     const tokenData = await exchangeCode(platform, code, codeVerifier);
@@ -123,7 +138,15 @@ export const oauthCallback = async (req, res) => {
         params: { access_token: accessToken },
       });
 
-      for (const page of pages.data || []) {
+      const pageList = pages.data || [];
+      if (!pageList.length) {
+        const err = new Error("No Facebook Pages were returned for this account.");
+        err.userMessage =
+          "No Facebook Pages found. Facebook posting requires admin access to a Page, not just a personal profile.";
+        throw err;
+      }
+
+      for (const page of pageList) {
         await saveAccount({
           userId,
           platform: "facebook",
@@ -152,7 +175,7 @@ export const oauthCallback = async (req, res) => {
             });
           }
         } catch {
-          // No linked Instagram account on this Page — fine, just skip it.
+          // No linked Instagram account on this Page - fine, just skip it.
         }
       }
     } else if (platform === "linkedin") {
@@ -204,6 +227,6 @@ export const oauthCallback = async (req, res) => {
     res.redirect(`${frontend}/accounts?connected=${platform}`);
   } catch (err) {
     console.error(`OAuth callback failed for ${platform}:`, err.response?.data || err.message);
-    res.redirect(`${frontend}/accounts?error=${encodeURIComponent("Connection failed — please try again")}`);
+    redirectError(err.userMessage || "Connection failed - please try again");
   }
 };
