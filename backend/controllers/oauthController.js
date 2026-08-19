@@ -98,7 +98,7 @@ const saveAccount = async ({ userId, platform, accountId, accountName, accessTok
 export const oauthCallback = async (req, res) => {
   const { platform } = req.params;
   const { code, state, error, error_description } = req.query;
-  const frontend = process.env.CLIENT_URL || "http://localhost:5173";
+  const frontend = (process.env.CLIENT_URL || "http://localhost:5173").split(",")[0].trim();
   const redirectError = (message) =>
     res.redirect(`${frontend}/accounts?error=${encodeURIComponent(message)}`);
 

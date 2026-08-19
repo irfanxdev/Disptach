@@ -45,6 +45,12 @@ services:
         sync: false
       - key: LINKEDIN_REDIRECT_URI
         sync: false
+      - key: PINTEREST_CLIENT_ID
+        sync: false
+      - key: PINTEREST_CLIENT_SECRET
+        sync: false
+      - key: PINTEREST_REDIRECT_URI
+        sync: false
 
   - type: web
     runtime: static

@@ -4,7 +4,12 @@ import crypto from "crypto";
 // ENCRYPTION_KEY must be exactly 32 characters (256 bits).
 const ALGORITHM = "aes-256-gcm";
 
-const getKey = () => Buffer.from(process.env.ENCRYPTION_KEY.padEnd(32, "0").slice(0, 32));
+const getKey = () => {
+  const key = process.env.ENCRYPTION_KEY;
+  if (!key) throw new Error("ENCRYPTION_KEY is not set");
+  if (key.length !== 32) throw new Error("ENCRYPTION_KEY must be exactly 32 characters");
+  return Buffer.from(key, "utf8");
+};
 
 export const encrypt = (text) => {
   const iv = crypto.randomBytes(12);
