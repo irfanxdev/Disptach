@@ -12,8 +12,16 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 
 dotenv.config({ path: new URL(".env", import.meta.url) });
 
-if (!process.env.MONGO_URI) {
-  throw new Error("MONGO_URI is missing. Create backend/.env and set MONGO_URI.");
+const requiredEnv = ["MONGO_URI", "JWT_SECRET", "ENCRYPTION_KEY"];
+const missingEnv = requiredEnv.filter((key) => !process.env[key]);
+if (missingEnv.length) {
+  throw new Error(
+    `Missing required env vars: ${missingEnv.join(", ")}. Copy backend/.env.example to backend/.env and fill them in.`
+  );
+}
+
+if (process.env.ENCRYPTION_KEY.length !== 32) {
+  throw new Error("ENCRYPTION_KEY must be exactly 32 characters. See backend/.env.example.");
 }
 
 await connectDB();
